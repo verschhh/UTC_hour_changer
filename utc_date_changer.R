@@ -137,9 +137,38 @@ adjust_date <- function(date_str, trigger) {
   return(sprintf("%02d/%02d/%04d", day, month, year))
 }
 
+# impression processing
+impressions$new_datetime <- mapply(
+  check_time,
+  as.character(impressions$date),
+  as.character(impressions$time),
+  as.character(impressions$timezone)
+)
 
-# Apply the check_time function directly to the three columns
-# Also create a new column for confort to store the results
+# Update impressions dataset
+impressions <- impressions %>%
+  mutate(
+    date = sub(" .*", "", new_datetime),
+    time = sub(".* ", "", sub(" UTC$", "", new_datetime)),
+    timezone = "UTC"
+  ) %>%
+  select(-new_datetime)
+
+# Join the campaign and advertiser together to make joining them easier later on
+campaigns_advertiser <- campaigns %>%
+  left_join(advertiser, by = c("advertiser_id" = "ID"))
+print("Campaigns and advertiser data joined successfully")
+
+# Join the campaigns_advertiser to the impressions dataset
+impressions <- impressions %>%
+  left_join(campaigns_advertiser, by = c("campaign_id" = "id"))
+print("Campaigns_advertiser data joined successfully to the impressions dataset.")
+
+# Save processed impressions
+write.csv(impressions, "impressions_processed.csv", row.names = FALSE)
+print("Impressions saved to impressions_processed.csv")
+
+# Clicks processing
 clicks$new_datetime <- mapply(
   check_time,
   as.character(clicks$date),
@@ -147,12 +176,20 @@ clicks$new_datetime <- mapply(
   as.character(clicks$timezone)
 )
 
-# Split the results stored in new_datetime into their respective columns
+# Update impressions dataset
 clicks <- clicks %>%
   mutate(
     date = sub(" .*", "", new_datetime),
     time = sub(".* ", "", sub(" UTC$", "", new_datetime)),
     timezone = "UTC"
   ) %>%
-  # Remove the temporary column created above
   select(-new_datetime)
+
+# Join the campaign_advertiser to the clicks dataset
+clicks <- clicks %>%
+  left_join(campaigns_advertiser, by = c("campaign_id" = "id"))
+print("Campaigns_advertiser data joined successfully to the clicks dataset.")
+
+# Save processed clicks
+write.csv(clicks, "clicks_processed.csv", row.names = FALSE)
+print("Clicks saved to clicks_processed.csv")
